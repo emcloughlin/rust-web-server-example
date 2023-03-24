@@ -10,9 +10,9 @@ use rust_web_server_example::ThreadPool;
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     let pool = match ThreadPool::build(4) {
-        Ok(ThreadPool) => ThreadPool,
+        Ok(thread_pool) => thread_pool,
         Err(error) => panic!("Problem creating the thread pool: {:?}", error),
-    }
+    };
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
