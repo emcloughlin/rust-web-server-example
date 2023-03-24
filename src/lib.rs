@@ -7,7 +7,7 @@ static MIN_POOL_SIZE: usize = 1;
 static MAX_POOL_SIZE: usize = 10;
 
 pub struct ThreadPool {
-    threads: Vec<Worker>,
+    workers: Vec<Worker>,
     sender: mpsc::Sender<Job>,
 }
 
@@ -18,7 +18,7 @@ pub enum PoolCreationError {
 
 struct Worker {
     id: usize,
-    thread: thread::JoinHandle<()>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
@@ -32,12 +32,12 @@ impl ThreadPool {
 
             let receiver = Arc::new(Mutex::new(receiver));
 
-            let mut threads = Vec::with_capacity(size);
+            let mut workers = Vec::with_capacity(size);
             for id in 0..size {
-                threads.push(Worker::new(id, Arc::clone(&receiver)))
+                workers.push(Worker::new(id, Arc::clone(&receiver)))
             }
 
-            Ok(ThreadPool { threads, sender })
+            Ok(ThreadPool { workers, sender })
         }
     }
 
@@ -61,6 +61,16 @@ impl Worker {
             job();
         });
 
-        Worker { id, thread }
+        Worker { id, thread: Some(thread) }
     }
 }
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        println!("Shutting down workers...");
+        for worker in &mut self.workers {
+            worker.thread.take().unwrap().join().unwrap();
+        }
+    }
+}
+
